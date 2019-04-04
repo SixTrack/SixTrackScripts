@@ -124,7 +124,7 @@ def ctestCoverage(stdOut,stdErr):
   outLns = stdOut.split("\n")
   cLOC = 0
   nLOC = 0
-  nTot = 0
+  nTot = 1
   if len(outLns) < 3:
     logger.error("CCOV> Cannot parse covergae output")
   else:
@@ -161,3 +161,9 @@ def getExecTime(tPath):
         return tVal
   return "Unknown"
 
+def dumpStdFiles(stdOut,stdErr,fName):
+  with open("stdout_"+fName+".log",mode="w") as outFile:
+    outFile.write(stdOut)
+  with open("stderr_"+fName+".log",mode="w") as outFile:
+    outFile.write(stdErr)
+  return

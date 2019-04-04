@@ -122,6 +122,7 @@ with open(path.join(dRoot,"prevHash.dat"),mode="w") as hFile:
 logger.info("Previous git hash: %s" % prevHash)
 if gitHash == prevHash:
   logger.info("No change to origin/master since last time. Exiting.")
+  logger.info("")
   exit(0)
 
 stdOut, stdErr, exCode = sysCall("uname -rsm")
@@ -204,12 +205,14 @@ for bComp in theCompilers.keys():
         # Execute Build
         tStart = time.time()
         stdOut, stdErr, exCode = sysCall(sysCmd)
+        dumpStdFiles(stdOut,stdErr,"build")
         tEnd = time.time() - tStart
 
         # Parse Results
         if exCode == 0:
           logger.info(" * Build Successful!")
           bPath = cmakeSixReturn(stdOut,stdErr)
+          stdOut, stdErr, bexCode = sysCall("mv std*.log %s" % bPath)
           logger.info(" * Executable in: %s" % bPath)
           bStatus["success"] = True
           bStatus["path"]    = bPath
@@ -224,6 +227,9 @@ for bComp in theCompilers.keys():
 
         bStatus["build"]     = True
         bStatus["buildtime"] = tEnd
+  
+      else:
+        logger.info(" * Build Skipped")
 
       # Send Report
       bStatus["apikey"] = genApiKey(keyFile)
@@ -249,6 +255,7 @@ for toRun in cTests:
 
   tStart = time.time()
   stdOut, stdErr, exCode = sysCall(toRun["testcmd"])
+  dumpStdFiles(stdOut,stdErr,"test")
   tEnd = time.time() - tStart
   tStatus["testtime"] = tEnd
 
@@ -310,43 +317,62 @@ sysCmd = "./cmake_six gfortran release BUILD_TESTING COVERAGE"
 logger.info("Coverage Build: %s" % sysCmd)
 tStart = time.time()
 stdOut, stdErr, bexCode = sysCall(sysCmd)
+dumpStdFiles(stdOut,stdErr,"build")
 tEnd = time.time() - tStart
 
 if bexCode == 0:
   logger.info(" * Coverage Build Successful!")
   bPath = cmakeSixReturn(stdOut,stdErr)
+  stdOut, stdErr, bexCode = sysCall("mv std*.log %s" % bPath)
   logger.info(" * Executable in: %s" % bPath)
 
   # Run Tests
   chdir(path.join(dSource,bPath))
   sysCmd = "ctest -E prob -j%d" % nCov
+# sysCmd = "ctest -R dynk -j%d" % nCov
   logger.info("Coverage Test: %s" % sysCmd)
   tStart = time.time()
   stdOut, stdErr, texCode = sysCall(sysCmd)
+  dumpStdFiles(stdOut,stdErr,"test")
   tEnd = time.time() - tStart
+
+  if texCode == 0:
+    logger.info(" * Coverage Tests Completed!")
+    cCleanup.append(bPath)
+  else:
+    logger.warning(" * Coverage Tests Failed!")
 
   # Compute Coverage
   sysCmd = "ctest -D NightlyCoverage | tail -n4"
   logger.info("Calculating Coverage: %s" % sysCmd)
   stdOut, stdErr, cexCode = sysCall(sysCmd)
+  dumpStdFiles(stdOut,stdErr,"coverage")
+
   nTot, cLoc, nLoc = ctestCoverage(stdOut,stdErr)
   theMeta["coverage"] = True
   theMeta["covloc"]   = cLoc
   theMeta["ncovloc"]  = nLoc
   theMeta["totloc"]   = nTot
+  rCov = 100*int(cLoc)/int(nTot)
 
-  if texCode == 0:
-    logger.info(" * Coverage Tests Completed!")
-    logger.info(" * Coverage is: %6.2f %%" % (100*int(cLoc)/int(nTot)))
-    cCleanup.append(bPath)
-  else:
-    logger.warning(" * Coverage Tests Failed!")
+  logger.info(" * Coverage is: %6.2f %%" % rCov)
 
   if path.isfile(path.join(dRoot,"prevCoverage.dat")):
     with open(path.join(dRoot,"prevCoverage.dat"),mode="r") as cFile:
       theMeta["prevcov"] = cFile.read()
   with open(path.join(dRoot,"prevCoverage.dat"),mode="w") as cFile:
     cFile.write("%s;%s;%s;%s" % (gitHash,nTot,cLoc,nLoc))
+  with open(path.join(dRoot,"Coverage.log"),mode="a") as outFile:
+    tStamp = datetime.fromtimestamp(tStatus["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
+    outFile.write("[%s]  %40s  %19s  %8s  %8s  %8s  %7.3f\n" % (
+      tStamp,
+      gitHash,
+      gitTime,
+      cLoc,
+      nLoc,
+      nTot,
+      rCov
+    ))
 
 else:
   logger.warning(" * Coverage Build Failed!")
