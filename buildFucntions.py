@@ -155,6 +155,8 @@ def getExecTime(tPath):
     return None
   with open(simTime,mode="r") as tFile:
     for tLine in tFile:
+      if len(tLine) < 49:
+        continue
       tName = tLine[:32].strip()
       tVal  = tLine[35:49].strip()
       if tName == "Stamp_BeforeExit":
