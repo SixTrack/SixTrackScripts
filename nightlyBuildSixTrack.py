@@ -1,0 +1,379 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*
+"""SixTrack Nightly Builds
+
+  SixTrack Nightly Builds
+ =========================
+  Loop through and build SixTrack with various compilers and flags
+  By: Veronica Berglyd Olsen
+      CERN (BE-ABP-HSS)
+      Geneva, Switzerland
+
+"""
+
+import sys
+import time
+import logging
+from os import path, chdir, mkdir, listdir
+from datetime import datetime
+from buildFucntions import *
+
+logger = logging.getLogger("SixTrackTestBuild")
+
+##
+#  Settings
+##
+
+dRoot    = "/scratch/TestBuild"
+dLog     = "/scratch/TestBuild/Logs"
+dSource  = "/scratch/TestBuild/Source/SixTrack"
+testTime = "/scratch/TestBuild/Timing"
+keyFile  = path.join(path.dirname(path.realpath(__file__)),"apiKey.dat")
+
+nBld  = 8
+nTest = 10
+nCov  = 14
+
+theCompilers = {
+  "g" : {"exec" : "gfortran", "version": "--version"},
+  "i" : {"exec" : "ifort",    "version": "--version"},
+  "n" : {"exec" : "nagfor",   "version": "-V"}
+}
+
+ctFF = "-L fast"
+ctFM = "-L 'fast|medium'"
+ctNS = "-E prob"
+
+theBuilds = {
+  # Label                 Compilers      Options                    Tests (rel/dbg)
+  "Standard Single"    : [["g","i","n"], "-64BITM -CRLIBM 32BITM",  [None,None]],
+  "Standard Double"    : [["g","i","n"], "",                        [ctNS,ctNS]],
+  "Standard Quad"      : [["g","i","n"], "-64BITM -CRLIBM 128BITM", [None,None]],
+  "Round Up"           : [["g","i","n"], "-ROUND_NEAR ROUND_UP",    [None,None]],
+  "Round Down"         : [["g","i","n"], "-ROUND_NEAR ROUND_DOWN",  [None,None]],
+  "Round Zero"         : [["g","i","n"], "-ROUND_NEAR ROUND_ZERO",  [None,None]],
+  "No SingleTrackFile" : [["g","i","n"], "-STF",                    [ctFF,ctFF]],
+  "Checkpoint/Restart" : [["g","i","n"], "CR",                      [ctNS,ctFF]],
+  "libArchive Support" : [["g","i","n"], "LIBARCHIVE",              [None,None]],
+  "BOINC Support"      : [["g","i","n"], "CR BOINC LIBARCHIVE",     [ctNS,ctFF]],
+  "Fortran I/O"        : [["g","i","n"], "FIO",                     [ctFF,ctFF]],
+  "HDF5"               : [["g"],         "HDF5",                    [None,None]],
+  "Pythia"             : [["g","i","n"], "PYTHIA",                  [None,None]],
+  "Beam-Gas"           : [["g","i","n"], "BEAMGAS",                 [None,None]],
+  "Fluka Coupling"     : [["g","i","n"], "FLUKA",                   [None,None]],
+  "Merlin Scattering"  : [["g","i","n"], "MERLINSCATTER",           [None,None]],
+  "DEBUG Flag"         : [["g","i","n"], "DEBUG",                   [None,None]],
+}
+
+# theBuilds = {
+#   "Standard Double" : [["g"], "", [ctFF,ctFF]],
+# }
+
+setupLogging(dLog)
+
+logger.info("*"*80)
+logger.info("* Starting New Test Build Session")
+logger.info("*"*80)
+
+# Get compiler versions
+cExecs = []
+for bComp in theCompilers.keys():
+  cExecs.append(theCompilers[bComp]["exec"])
+  stdOut, stdErr, exCode = sysCall("%s %s" % (theCompilers[bComp]["exec"], theCompilers[bComp]["version"]))
+  tmpLn = (stdOut+stdErr).split("\n")
+  theCompilers[bComp]["version"] = tmpLn[0]
+  if not exCode == 0:
+    logger.error("There is a problem with the %s compiler" % bComp)
+    logWrap("COMPILER",stdOut,stdErr,exCode)
+
+# Repository
+chdir(dSource)
+logger.info("Entering directory: %s" % dSource)
+logger.info("Updating source ...")
+
+stdOut, stdErr, exCode = sysCall("git remote update")
+logWrap("GIT",stdOut,stdErr,exCode)
+
+stdOut, stdErr, exCode = sysCall("git checkout master")
+logWrap("GIT",stdOut,stdErr,exCode)
+
+stdOut, stdErr, exCode = sysCall("git pull")
+logWrap("GIT",stdOut,stdErr,exCode)
+
+logger.info("Done!")
+
+# Meta Data
+
+stdOut, stdErr, exCode = sysCall("git log -n1 --pretty=format:%H")
+gitHash  = stdOut.strip()
+prevHash = "None"
+logger.info("Current git hash: %s" % gitHash)
+
+stdOut, stdErr, exCode = sysCall("git show -s --format=%%ci %s | tail -n1" % gitHash)
+gitTime = (stdOut.strip())[:19]
+logger.info("Commit date: %s" % gitTime)
+
+if path.isfile(path.join(dRoot,"prevHash.dat")):
+  with open(path.join(dRoot,"prevHash.dat"),mode="r") as hFile:
+    prevHash = hFile.read()
+with open(path.join(dRoot,"prevHash.dat"),mode="w") as hFile:
+  hFile.write(gitHash)
+
+logger.info("Previous git hash: %s" % prevHash)
+if gitHash == prevHash:
+  logger.info("No change to origin/master since last time. Exiting.")
+  exit(0)
+
+stdOut, stdErr, exCode = sysCall("uname -rsm")
+runOS = stdOut.strip()
+logger.info("Running on: %s" % runOS)
+
+tJobs = []
+for bBuild in theBuilds:
+  if theBuilds[bBuild][2][0] is not None or theBuilds[bBuild][2][1] is not None:
+    tJobs.append(bBuild)
+
+theMeta = {
+  "action"    : "meta",
+  "apikey"    : genApiKey(keyFile),
+  "runtime"   : time.time(),
+  "hash"      : gitHash,
+  "ctime"     : gitTime,
+  "os"        : runOS,
+  "complist"  : ",".join(cExecs),
+  "buildlist" : ",".join(theBuilds.keys()),
+  "testlist"  : ",".join(tJobs),
+  "endtime"   : -1,
+  "coverage"  : False,
+  "covloc"    : 0,
+  "ncovloc"   : 0,
+  "totloc"    : 0,
+  "prevcov"   : "",
+}
+sendData(theMeta)
+
+##
+#  Builds
+##
+
+logger.info("Executing build queue ...")
+bCount   = 0
+cTests   = []
+cCleanup = []
+theTypes = ["Release","Debug"]
+for bComp in theCompilers.keys():
+  for iType in range(2):
+    for bBuild in theBuilds.keys():
+
+      bldExec = theCompilers[bComp]["exec"]
+      bldType = theTypes[iType]
+      bldComp = theBuilds[bBuild][0]
+      bldOpts = theBuilds[bBuild][1]
+      testCmd = theBuilds[bBuild][2][iType]
+      bCount += 1
+
+      # Build Command
+      sysCmd = "./cmake_six %s %s %s" % (bldExec,bldType.lower(),bldOpts)
+      sysCmd = sysCmd.strip()
+      if testCmd is not None:
+        sysCmd += " BUILD_TESTING"
+
+      logger.info("Build %03d: %s" % (bCount, sysCmd))
+
+      # Results Record
+      bStatus = {
+        "action"    : "build",
+        "apikey"    : "",
+        "timestamp" : time.time(),
+        "hash"      : gitHash,
+        "compiler"  : bldExec,
+        "type"      : bldType,
+        "build"     : False,
+        "flag"      : bBuild,
+        "command"   : sysCmd,
+        "buildno"   : bCount,
+        "success"   : False,
+        "path"      : "",
+        "testcmd"   : "",
+        "buildtime" : -1,
+      }
+
+      # Check if Should Be Built
+      if bComp in bldComp:
+
+        # Execute Build
+        tStart = time.time()
+        stdOut, stdErr, exCode = sysCall(sysCmd)
+        tEnd = time.time() - tStart
+
+        # Parse Results
+        if exCode == 0:
+          logger.info(" * Build Successful!")
+          bPath = cmakeSixReturn(stdOut,stdErr)
+          logger.info(" * Executable in: %s" % bPath)
+          bStatus["success"] = True
+          bStatus["path"]    = bPath
+          if testCmd is not None:
+            bStatus["testcmd"] = "ctest %s -j%d" % (testCmd,nTest)
+            logger.info(" * Adding executable to test queue")
+            cTests.append(bStatus)
+          else:
+            cCleanup.append(bPath)
+        else:
+          logger.warning(" * Build Failed!")
+
+        bStatus["build"]     = True
+        bStatus["buildtime"] = tEnd
+
+      # Send Report
+      bStatus["apikey"] = genApiKey(keyFile)
+      sendData(bStatus)
+
+logger.info("Build queue done!")
+
+##
+#  Tests
+##
+
+logger.info("Executing test queue ...")
+tCount = 0
+for toRun in cTests:
+  tCount += 1
+  chdir(path.join(dSource,toRun["path"]))
+  logger.info("Test %03d: %s" % (tCount, toRun["path"]))
+  logger.info(" * Command: %s" % (toRun["testcmd"]))
+  tStatus = toRun
+  tStatus["action"]    = "test"
+  tStatus["testno"]    = tCount
+  tStatus["timestamp"] = time.time()
+
+  tStart = time.time()
+  stdOut, stdErr, exCode = sysCall(toRun["testcmd"])
+  tEnd = time.time() - tStart
+  tStatus["testtime"] = tEnd
+
+  chdir(dSource)
+  if exCode == 0:
+    logger.info(" * Tests Passed!")
+    tStatus["passtests"] = True
+    cCleanup.append(toRun["path"])
+  else:
+    logger.warning(" * Tests Failed!")
+    tStatus["passtests"] = False
+
+  nTotal, nPass, nFail, tFail = ctestResult(stdOut,stdErr)
+  for failName in tFail:
+    logger.warning(" * Failed: %s" % failName)
+
+  tStatus["failed"] = ", ".join(tFail)
+  tStatus["ntotal"] = nTotal
+  tStatus["npass"]  = nPass
+  tStatus["nfail"]  = nFail
+
+  # Send Report
+  tStatus["apikey"] = genApiKey(keyFile)
+  sendData(tStatus)
+
+  # Log Timing
+  for tItem in listdir(path.join(toRun["path"],"test")):
+    tPath = path.join(toRun["path"],"test",tItem)
+    if path.isdir(tPath):
+      execTime = getExecTime(tPath)
+      if execTime is None:
+        continue
+      timPath = path.join(testTime,tItem+".dat")
+      if tItem in tFail:
+        tRes = "Failed"
+      else:
+        tRes = "Passed"
+      with open(timPath,mode="a") as outFile:
+        tStamp = datetime.fromtimestamp(tStatus["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
+        outFile.write("[%s]  %40s  %19s  %14s  %6s  Build: %s\n" % (
+          tStamp,
+          gitHash,
+          gitTime,
+          execTime,
+          tRes,
+          tStatus["command"][12:]
+        ))
+
+logger.info("Test queue done!")
+
+##
+#  Coverage
+##
+
+logger.info("Beginning coverage ...")
+
+chdir(dSource)
+sysCmd = "./cmake_six gfortran release BUILD_TESTING COVERAGE"
+logger.info("Coverage Build: %s" % sysCmd)
+tStart = time.time()
+stdOut, stdErr, bexCode = sysCall(sysCmd)
+tEnd = time.time() - tStart
+
+if bexCode == 0:
+  logger.info(" * Coverage Build Successful!")
+  bPath = cmakeSixReturn(stdOut,stdErr)
+  logger.info(" * Executable in: %s" % bPath)
+
+  # Run Tests
+  chdir(path.join(dSource,bPath))
+  sysCmd = "ctest -E prob -j%d" % nCov
+  logger.info("Coverage Test: %s" % sysCmd)
+  tStart = time.time()
+  stdOut, stdErr, texCode = sysCall(sysCmd)
+  tEnd = time.time() - tStart
+
+  # Compute Coverage
+  sysCmd = "ctest -D NightlyCoverage | tail -n4"
+  logger.info("Calculating Coverage: %s" % sysCmd)
+  stdOut, stdErr, cexCode = sysCall(sysCmd)
+  nTot, cLoc, nLoc = ctestCoverage(stdOut,stdErr)
+  theMeta["coverage"] = True
+  theMeta["covloc"]   = cLoc
+  theMeta["ncovloc"]  = nLoc
+  theMeta["totloc"]   = nTot
+
+  if texCode == 0:
+    logger.info(" * Coverage Tests Completed!")
+    logger.info(" * Coverage is: %6.2f %%" % (100*int(cLoc)/int(nTot)))
+    cCleanup.append(bPath)
+  else:
+    logger.warning(" * Coverage Tests Failed!")
+
+  if path.isfile(path.join(dRoot,"prevCoverage.dat")):
+    with open(path.join(dRoot,"prevCoverage.dat"),mode="r") as cFile:
+      theMeta["prevcov"] = cFile.read()
+  with open(path.join(dRoot,"prevCoverage.dat"),mode="w") as cFile:
+    cFile.write("%s;%s;%s;%s" % (gitHash,nTot,cLoc,nLoc))
+
+else:
+  logger.warning(" * Coverage Build Failed!")
+
+chdir(dSource)
+logger.info("Coverage done!")
+
+##
+#  Cleanup
+##
+
+logger.info("Beginning cleanup ...")
+for rPath in cCleanup:
+  stdOut, stdErr, exCode = sysCall("rm -r %s" % rPath)
+  if exCode == 0:
+    logger.info("Deleting: %s ... OK" % rPath)
+  else:
+    logger.info("Deleting: %s ... Failed" % rPath)
+logger.info("Cleanup done!")
+
+##
+#  Finish
+##
+
+theMeta["apikey"]  = genApiKey(keyFile),
+theMeta["endtime"] = time.time(),
+sendData(theMeta)
+
+logger.info("All Done!")
+logger.info("")

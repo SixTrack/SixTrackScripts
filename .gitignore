@@ -1,0 +1,5 @@
+__pycache__
+apiKey.dat
+*.log
+test*.py
+
