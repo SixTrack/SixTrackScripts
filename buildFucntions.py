@@ -169,3 +169,11 @@ def dumpStdFiles(stdOut,stdErr,fName):
   with open("stderr_"+fName+".log",mode="w") as outFile:
     outFile.write(stdErr)
   return
+
+def getSixTrackVersion(dSource):
+  stdOut, stdErr, exCode = sysCall("cat %s | grep 'version = '" % path.join(dSource,"source","version.f90"))
+  tmpLn = stdOut.strip().split()
+  if len(tmpLn) > 0:
+    return tmpLn[-1].replace("\"","")
+  else:
+    return "Unknown"

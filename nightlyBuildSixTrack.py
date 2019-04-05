@@ -129,6 +129,9 @@ stdOut, stdErr, exCode = sysCall("uname -rsm")
 runOS = stdOut.strip()
 logger.info("Running on: %s" % runOS)
 
+stVers = getSixTrackVersion(dSource)
+logger.info("SixTrack Version: %s" % stVers)
+
 tJobs = []
 for bBuild in theBuilds:
   if theBuilds[bBuild][2][0] is not None or theBuilds[bBuild][2][1] is not None:
@@ -141,6 +144,7 @@ theMeta = {
   "hash"      : gitHash,
   "ctime"     : gitTime,
   "os"        : runOS,
+  "stvers"    : stVers,
   "complist"  : ",".join(cExecs),
   "buildlist" : ",".join(theBuilds.keys()),
   "testlist"  : ",".join(tJobs),
@@ -409,8 +413,8 @@ theMeta["endtime"] = time.time(),
 sendData(theMeta)
 
 with open(path.join(dRoot,"Builds.log"),mode="a") as outFile:
-  outFile.write("%40s  %19s  %19s  %19s  %5d  %5d  %5d  %5d  %5d  %s\n" % (
-    gitHash,gitTime,
+  outFile.write("%40s  %19s  %-10s  %19s  %19s  %5d  %5d  %5d  %5d  %5d  %s\n" % (
+    gitHash,gitTime,stVers,
     datetime.fromtimestamp(theMeta["runtime"]).strftime("%Y-%m-%d %H:%M:%S"),
     datetime.fromtimestamp(theMeta["endtime"]).strftime("%Y-%m-%d %H:%M:%S"),
     bCount,tCount,
