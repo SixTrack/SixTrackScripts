@@ -243,6 +243,9 @@ logger.info("Build queue done!")
 
 logger.info("Executing test queue ...")
 tCount = 0
+ntTot  = 0
+ntPass = 0
+ntFail = 0
 for toRun in cTests:
   tCount += 1
   chdir(path.join(dSource,toRun["path"]))
@@ -277,6 +280,10 @@ for toRun in cTests:
   tStatus["npass"]  = nPass
   tStatus["nfail"]  = nFail
 
+  ntTot  += nTotal
+  ntPass += nPass
+  ntFail += nFail
+
   # Send Report
   tStatus["apikey"] = genApiKey(keyFile)
   sendData(tStatus)
@@ -288,7 +295,7 @@ for toRun in cTests:
       execTime = getExecTime(tPath)
       if execTime is None:
         continue
-      timPath = path.join(testTime,tItem+".dat")
+      timPath = path.join(testTime,tItem+".log")
       if tItem in tFail:
         tRes = "Failed"
       else:
@@ -400,6 +407,16 @@ logger.info("Cleanup done!")
 theMeta["apikey"]  = genApiKey(keyFile),
 theMeta["endtime"] = time.time(),
 sendData(theMeta)
+
+with open(path.join(dRoot,"Builds.log"),mode="a") as outFile:
+  outFile.write("%40s  %19s  %19s  %19s  %5d  %5d  %5d  %5d  %5d  %s\n" % (
+    gitHash,gitTime,
+    datetime.fromtimestamp(theMeta["runtime"]).strftime("%Y-%m-%d %H:%M:%S"),
+    datetime.fromtimestamp(theMeta["endtime"]).strftime("%Y-%m-%d %H:%M:%S"),
+    bCount,tCount,
+    ntTot,ntPass,ntFail,
+    theMeta["os"]
+  ))
 
 logger.info("All Done!")
 logger.info("")
