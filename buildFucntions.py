@@ -163,6 +163,20 @@ def getExecTime(tPath):
         return tVal
   return "Unknown"
 
+def getSimMeta(mPath, mValue):
+  simMeta = path.join(mPath,"sim_meta.dat")
+  if not path.isfile(simMeta):
+    return None
+  with open(simMeta,mode="r") as mFile:
+    for mLine in mFile:
+      if len(mLine) < 50:
+        continue
+      mName = mLine[:32].strip()
+      mVal  = mLine[35:50].strip()
+      if mName == mValue:
+        return mVal
+  return "Unknown"
+
 def dumpStdFiles(stdOut,stdErr,fName):
   with open("stdout_"+fName+".log",mode="w") as outFile:
     outFile.write(stdOut)

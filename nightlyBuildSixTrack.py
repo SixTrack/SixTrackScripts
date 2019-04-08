@@ -35,9 +35,9 @@ nTest = 10
 nCov  = 14
 
 theCompilers = {
-  "g" : {"exec" : "gfortran", "version": "--version"},
-  "i" : {"exec" : "ifort",    "version": "--version"},
-  "n" : {"exec" : "nagfor",   "version": "-V"}
+  "g" : {"exec" : "gfortran", "enabled" : True, "version": "--version"},
+  "i" : {"exec" : "ifort",    "enabled" : True, "version": "--version"},
+  "n" : {"exec" : "nagfor",   "enabled" : True, "version": "-V"}
 }
 
 ctFF = "-L fast"
@@ -82,7 +82,10 @@ for bComp in theCompilers.keys():
   stdOut, stdErr, exCode = sysCall("%s %s" % (theCompilers[bComp]["exec"], theCompilers[bComp]["version"]))
   tmpLn = (stdOut+stdErr).split("\n")
   theCompilers[bComp]["version"] = tmpLn[0]
-  if not exCode == 0:
+  theCompilers[bComp]["enabled"] = exCode == 0
+  if exCode == 0:
+    logger.info("Using %s: %s" % (theCompilers[bComp]["exec"],theCompilers[bComp]["version"]))
+  else:
     logger.error("There is a problem with the %s compiler" % bComp)
     logWrap("COMPILER",stdOut,stdErr,exCode)
 
@@ -204,7 +207,7 @@ for bComp in theCompilers.keys():
       }
 
       # Check if Should Be Built
-      if bComp in bldComp:
+      if bComp in bldComp and theCompilers[bComp]["enabled"]:
 
         # Execute Build
         tStart = time.time()
@@ -349,7 +352,7 @@ if bexCode == 0:
 
   if texCode == 0:
     logger.info(" * Coverage Tests Completed!")
-    cCleanup.append(bPath)
+    # cCleanup.append(bPath)
   else:
     logger.warning(" * Coverage Tests Failed!")
 
@@ -392,6 +395,62 @@ chdir(dSource)
 logger.info("Coverage done!")
 
 ##
+#  Memory Usage
+##
+
+logger.info("Beginning memory usage ...")
+
+chdir(dSource)
+sysCmd = "./cmake_six gfortran release BUILD_TESTING MEMUSAGE"
+logger.info("MemUsage Build: %s" % sysCmd)
+tStart = time.time()
+stdOut, stdErr, bexCode = sysCall(sysCmd)
+dumpStdFiles(stdOut,stdErr,"build")
+tEnd = time.time() - tStart
+
+if bexCode == 0:
+  logger.info(" * Memory Usage Build Successful!")
+  bPath = cmakeSixReturn(stdOut,stdErr)
+  stdOut, stdErr, bexCode = sysCall("mv std*.log %s" % bPath)
+  logger.info(" * Executable in: %s" % bPath)
+
+  # Run Tests
+  chdir(path.join(dSource,bPath))
+  sysCmd = "ctest -E prob -j%d" % nCov
+# sysCmd = "ctest -R dynk -j%d" % nCov
+  logger.info("Memory Usage Test: %s" % sysCmd)
+  tStart = time.time()
+  stdOut, stdErr, texCode = sysCall(sysCmd)
+  dumpStdFiles(stdOut,stdErr,"test")
+  tEnd = time.time() - tStart
+
+  if texCode == 0:
+    logger.info(" * Memory Usage Tests Completed!")
+    cCleanup.append(bPath)
+  else:
+    logger.warning(" * Memory Usage Tests Failed!")
+
+  # Compute Memory Usage
+  for tItem in listdir("test"):
+    tPath = path.join("test",tItem)
+    if path.isdir(tPath):
+      memHWM   = getSimMeta(tPath,"Exec_VmHWM[MiB]")
+      memPeak  = getSimMeta(tPath,"Exec_VmPeak[MiB]")
+      memAlloc = getSimMeta(tPath,"PeakDynamicMemAlloc[MiB]")
+      if memHWM is None and memPeak is None and memAlloc is None:
+        continue
+      with open(path.join(dRoot,"MemUsage.log"),mode="a") as outFile:
+        outFile.write("%40s  %19s  %-40s  %12s  %12s  %12s\n" % (
+          gitHash,gitTime,tItem,memAlloc,memHWM,memPeak
+        ))
+
+else:
+  logger.warning(" * Memory Usage Build Failed!")
+
+chdir(dSource)
+logger.info("Memory usage done!")
+
+##
 #  Cleanup
 ##
 
@@ -408,8 +467,8 @@ logger.info("Cleanup done!")
 #  Finish
 ##
 
-theMeta["apikey"]  = genApiKey(keyFile),
-theMeta["endtime"] = time.time(),
+theMeta["apikey"]  = genApiKey(keyFile)
+theMeta["endtime"] = time.time()
 sendData(theMeta)
 
 with open(path.join(dRoot,"Builds.log"),mode="a") as outFile:
