@@ -9,6 +9,9 @@
       CERN (BE-ABP-HSS)
       Geneva, Switzerland
 
+  Package Dependencies:
+   - gcovr : for generating the coverage report in html
+
 """
 
 import sys
@@ -28,6 +31,7 @@ dRoot    = "/scratch/TestBuild"
 dLog     = "/scratch/TestBuild/Logs"
 dSource  = "/scratch/TestBuild/Source/SixTrack"
 testTime = "/scratch/TestBuild/Timing"
+testCov  = "/scratch/TestBuild/Coverage"
 keyFile  = path.join(path.dirname(path.realpath(__file__)),"apiKey.dat")
 
 nBld  = 8
@@ -79,15 +83,20 @@ logger.info("*"*80)
 cExecs = []
 for bComp in theCompilers.keys():
   cExecs.append(theCompilers[bComp]["exec"])
+  cStart = time.time()
   stdOut, stdErr, exCode = sysCall("%s %s" % (theCompilers[bComp]["exec"], theCompilers[bComp]["version"]))
-  tmpLn = (stdOut+stdErr).split("\n")
+  cEnd   = time.time()
+  tmpLn  = (stdOut+stdErr).split("\n")
   theCompilers[bComp]["version"] = tmpLn[0]
   theCompilers[bComp]["enabled"] = exCode == 0
   if exCode == 0:
     logger.info("Using %s: %s" % (theCompilers[bComp]["exec"],theCompilers[bComp]["version"]))
   else:
-    logger.error("There is a problem with the %s compiler" % bComp)
+    logger.error("There is a problem with the %s compiler" % theCompilers[bComp]["exec"])
     logWrap("COMPILER",stdOut,stdErr,exCode)
+  if cEnd - cStart > 180:
+    logger.error("There is a problem with the %s compiler - too slow to execute" % theCompilers[bComp]["exec"])
+    theCompilers[bComp]["enabled"] = False
 
 # Repository
 chdir(dSource)
@@ -356,7 +365,7 @@ if bexCode == 0:
   else:
     logger.warning(" * Coverage Tests Failed!")
 
-  # Compute Coverage
+  # Compute Coverage w/CMake
   sysCmd = "ctest -D NightlyCoverage | tail -n4"
   logger.info("Calculating Coverage: %s" % sysCmd)
   stdOut, stdErr, cexCode = sysCall(sysCmd)
@@ -377,16 +386,28 @@ if bexCode == 0:
   with open(path.join(dRoot,"prevCoverage.dat"),mode="w") as cFile:
     cFile.write("%s;%s;%s;%s" % (gitHash,nTot,cLoc,nLoc))
   with open(path.join(dRoot,"Coverage.log"),mode="a") as outFile:
-    tStamp = datetime.fromtimestamp(tStatus["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
-    outFile.write("[%s]  %40s  %19s  %8s  %8s  %8s  %7.3f\n" % (
-      tStamp,
-      gitHash,
-      gitTime,
-      cLoc,
-      nLoc,
-      nTot,
-      rCov
+    outFile.write(" %40s  %19s  %8s  %8s  %8s  %7.3f\n" % (
+      gitHash,gitTime,cLoc,nLoc,nTot,rCov
     ))
+
+  # Create HTML Report w/gcovr
+  chdir(path.join(dSource,bPath))
+  cPath = path.join(testCov,"html")
+  if not path.isdir(cPath):
+    mkdir(cPath)
+  stdOut, stdErr, exCode = sysCall("rm %s/*" % cPath)
+  stdOut, stdErr, exCode = sysCall("echo \"%s\" > %s/githash.txt" % (gitHash,cPath))
+  stdOut, stdErr, exCode = sysCall("echo \"%s\" >> %s/githash.txt" % (gitTime,cPath))
+  stdOut, stdErr, exCode = sysCall(
+    "gcovr -o %s/index.html -p -s --html-details --html-medium-threshold 50 --html-high-threshold 80 --html-title SixTrack" % cPath
+  )
+  if exCode == 0:
+    logger.info(" * Generated Report!")
+    logWrap("GCOVR", stdOut, stdErr, exCode)
+    chdir(testCov)
+    stdOut, stdErr, exCode = sysCall("tar -czf %s.tgz html" % gitHash)
+  else:
+    logger.warning(" * Generating Report Failed!")
 
 else:
   logger.warning(" * Coverage Build Failed!")
