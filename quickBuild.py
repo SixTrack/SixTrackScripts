@@ -29,8 +29,7 @@ dTemp    = "/scratch/Temp/"
 dLibs    = "/scratch/TestBuild/Source/SixTrack/lib"
 
 nBld  = 8
-nTest = 10
-nCov  = 14
+nTest = 14
 
 setupLogging(dLog,True)
 
@@ -125,8 +124,8 @@ logger.info("")
 logger.info("Building SixTrack:")
 
 bldPass = {}
+exCode = system("rm -rf build/")
 for aComp in theComps:
-  exCode = system("rm -rf build/")
   exCode = system("./cmake_six %s release %s" % (aComp," ".join(theFlags)))
   bldPass[aComp] = exCode == 0
 
@@ -142,29 +141,29 @@ for aBuild in listdir(bldDir):
     chdir(theBuild)
     exCode = system("ctest %s -j%d" % (theTest,nTest))
     tstPass[aBuild] = exCode == 0
-# SixTrack_cmakesix_BUILD_TESTING_gfortran_release
 
 logger.info("")
-logger.info("="*100)
+logger.info("="*74)
 logger.info("")
 logger.info("Build Summary:")
 for aBuild in bldPass:
   if aBuild:
-    bRes = "Passed"
+    bRes = "   Passed"
   else:
-    bRes = "Failed"
-  logger.info(" * Build with %-72s : %s" % (aBuild,bRes))
+    bRes = "***Failed"
+  bDesc = "%s %s" % (aBuild," ".join(theFlags))
+  logger.info(" * %s %s%s" % (bDesc,"."*(60-len(bDesc)),bRes))
 
 logger.info("")
 logger.info("Tests Summary:")
 for aTest in tstPass:
   if aTest:
-    bRes = "Passed"
+    bRes = "   Passed"
   else:
-    bRes = "Failed"
+    bRes = "***Failed"
   tDesc = aTest[18:].replace("BUILD_TESTING","").replace("_"," ").strip()
-  logger.info(" * Tests with %-72s : %s" % (tDesc,bRes))
+  logger.info(" * %s %s%s" % (tDesc,"."*(60-len(tDesc)),bRes))
 
 logger.info("")
-logger.info("="*100)
+logger.info("="*74)
 logger.info("")
