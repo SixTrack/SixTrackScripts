@@ -14,20 +14,24 @@
 import logging
 import requests
 import subprocess
-from os import path
+from os import path, chdir, getcwd, system
 from datetime import datetime
 from hashlib import md5
 
 logger = logging.getLogger("SixTrackTestBuild")
 
 # Set up logging
-def setupLogging(dLog):
-  logFmt = logging.Formatter(fmt="[%(asctime)s] %(levelname)-8s  %(message)s",datefmt="%Y-%m-%d %H:%M:%S")
+def setupLogging(dLog,fPlain=False):
+  if fPlain:
+    logFmt = logging.Formatter(fmt="%(message)s")
+  else:
+    logFmt = logging.Formatter(fmt="[%(asctime)s] %(levelname)-8s  %(message)s",datefmt="%Y-%m-%d %H:%M:%S")
 
-  fHandle = logging.FileHandler(dLog+"/testBuildSixTrack-"+datetime.now().strftime("%Y-%m")+".log")
-  fHandle.setLevel(logging.DEBUG)
-  fHandle.setFormatter(logFmt)
-  logger.addHandler(fHandle)
+  if not fPlain:
+    fHandle = logging.FileHandler(dLog+"/testBuildSixTrack-"+datetime.now().strftime("%Y-%m")+".log")
+    fHandle.setLevel(logging.DEBUG)
+    fHandle.setFormatter(logFmt)
+    logger.addHandler(fHandle)
 
   cHandle = logging.StreamHandler()
   cHandle.setLevel(logging.DEBUG)
@@ -191,3 +195,48 @@ def getSixTrackVersion(dSource):
     return tmpLn[-1].replace("\"","")
   else:
     return "Unknown"
+
+def mirrorRepo(dSource):
+  """Create a mirror of the repository
+  """
+  mirrorPath = path.join(dSource,"SixTrack.git")
+  workingDir = getcwd()
+  chdir(dSource)
+
+  if path.isdir(mirrorPath):
+    chdir(mirrorPath)
+    logger.info("Updating the SixTrack repository ...")
+    stdOut, stdErr, exCode = sysCall("git remote update")
+  else:
+    logger.info("Cloning the SixTrack repository")
+    exCode = system("git clone https://github.com/SixTrack/SixTrack.git --mirror")
+    if exCode != 0:
+      endExec("Failed to clone SixTrack repository")
+    chdir(mirrorPath)
+
+  chdir(workingDir)
+
+  return
+
+def getCommitFromRef(dSource, gitRef):
+  """Get the commit hash for a given ref
+  """
+  mirrorPath = path.join(dSource,"SixTrack.git")
+  workingDir = getcwd()
+  chdir(mirrorPath)
+
+  stdOut, stdErr, exCode = sysCall("git show-ref %s" % gitRef)
+  if exCode == 0:
+    gitHash = stdOut[0:40]
+  else:
+    logger.error("Unknown ref '%s'" % gitRef)
+    return gitHash, "", ""
+  stdOut, stdErr, exCode = sysCall("git show -s --format=%%ci %s | tail -n1" % gitHash)
+  gitTime = stdOut.strip()
+  stdOut, stdErr, exCode = sysCall("git log --format=%%B -n 1 %s | head -n1" % gitHash)
+  gitMsg = stdOut.strip()
+
+  chdir(workingDir)
+
+  return gitHash, gitTime, gitMsg
+
