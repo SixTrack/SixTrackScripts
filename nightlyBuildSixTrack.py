@@ -386,7 +386,7 @@ if bexCode == 0:
   with open(path.join(dRoot,"prevCoverage.dat"),mode="w") as cFile:
     cFile.write("%s;%s;%s;%s" % (gitHash,nTot,cLoc,nLoc))
   with open(path.join(dRoot,"Coverage.log"),mode="a") as outFile:
-    outFile.write(" %40s  %19s  %8s  %8s  %8s  %7.3f\n" % (
+    outFile.write("%40s  %19s  %8s  %8s  %8s  %7.3f\n" % (
       gitHash,gitTime,cLoc,nLoc,nTot,rCov
     ))
 

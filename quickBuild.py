@@ -117,7 +117,7 @@ for inArg in sys.argv[1:]:
     doClean = False
   elif inArg == inArg.upper():
     theFlags.append(inArg)
-  elif inArg in ("help","-help","--help","-h","what","wtf","huh","why","butwhy","ffs"):
+  elif inArg in ("help","-help","--help","-h","what","wtf","huh","why","butwhy","ffs","dafuq"):
     print(theHelp)
     exit(0)
   else:
