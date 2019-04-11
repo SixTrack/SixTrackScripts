@@ -9,6 +9,18 @@
       CERN (BE-ABP-HSS)
       Geneva, Switzerland
 
+  This script will run builds and tests based on a fuzzy list of input parameters.
+  These can be, in no particular order:
+
+   * Compilers:         gfortran, ifort, nagfor
+   * Build Types:       debug, release
+   * Build Flags:       Any flag that is accepted by the CMake. BUILD_TESTING is implied.
+   * Run Tests:         fast, medium, slow, fastmedium, gonuts (last one runs '-E prob')
+   * Delete Work Dir:   clean, messy (for do clean up, and don't, respectively)
+   * Show Build Output: buildout, nobuildout
+   * Show Test Output:  testout, notestout
+   * Show Output:       spammy, quiet (sets both of the above at the same time)
+
 """
 
 import sys
@@ -39,54 +51,96 @@ logger.info("*"*80)
 
 mirrorRepo(dSource)
 
-# Parse arguments, but don't be difficult
+# Help message
+
+theHelp = """
+ So, you don't know what to do?
+ This script will run builds and tests based on a fuzzy list of input parameters.
+ These can be, in no particular order:
+  * Compilers:         gfortran, ifort, nagfor
+  * Build Types:       debug, release
+  * Build Flags:       Any flag that is accepted by the CMake. BUILD_TESTING is implied.
+  * Run Tests:         fast, medium, slow, fastmedium, gonuts (last one runs '-E prob')
+  * Delete Work Dir:   clean, messy (for do clean up, and don't, respectively)
+  * Show Build Output: buildout, nobuildout
+  * Show Test Output:  testout, notestout
+  * Show Output:       spammy, quiet (sets both of the above at the same time)
+"""
+
+# Parse arguments, but don't be difficult!
 
 chkType  = "b"
 chkRef   = "refs/heads/master"
 theComps = []
-theFlags = ["BUILD_TESTING"]
+theTypes = []
+theFlags = []
 theTest  = "-L fast"
-showStd  = False
+buildOut = False
+testOut  = True
+doClean  = True
 
-for anArg in sys.argv[1:]:
-  if anArg[:2] == "b:":
+for inArg in sys.argv[1:]:
+  if inArg[:2] == "b:":
     chkType = "b"
-    chkRef  = "refs/heads/%s" % anArg[2:]
-  elif anArg[:3] == "pr:":
+    chkRef  = "refs/heads/%s" % inArg[2:]
+  elif inArg[:3] == "pr:":
     chkType = "pr"
-    chkRef  = "refs/pull/%s/head" % anArg[3:]
-  elif anArg[:4] == "tag:":
+    chkRef  = "refs/pull/%s/head" % inArg[3:]
+  elif inArg[:4] == "tag:":
     chkType = "pr"
-    chkRef  = "refs/tags/%s" % anArg[4:]
-  elif anArg == "gfortran":
-    theComps.append("gfortran")
-  elif anArg == "ifort":
-    theComps.append("ifort")
-  elif anArg == "nagfor":
-    theComps.append("nagfor")
-  elif anArg == "fast":
+    chkRef  = "refs/tags/%s" % inArg[4:]
+  elif inArg in ("gfortran","ifort","nagfor"):
+    theComps.append(inArg)
+  elif inArg in ("debug","release"):
+    theTypes.append(inArg)
+  elif inArg == "fast":
     theTest = "-L fast"
-  elif anArg == "medium":
+  elif inArg == "medium":
     theTest = "-L medium"
-  elif anArg == "fastmedium":
+  elif inArg == "slow":
+    theTest = "-L slow"
+  elif inArg == "fastmedium":
+    theTest = "-L \"fast|medium\""
+  elif inArg == "gonuts":
     theTest = "-E prob"
-  elif anArg == "gonuts":
-    theTest = "-E prob"
-  elif anArg == "spammy":
-    showStd = True
+  elif inArg in ("buildout","spammy"):
+    buildOut = True
+  elif inArg in ("nobuildout","quiet"):
+    buildOut = False
+  elif inArg in ("testdout","spammy"):
+    testOut = True
+  elif inArg in ("notestdout","quiet"):
+    testOut = False
+  elif inArg in "clean":
+    doClean = True
+  elif inArg in "messy":
+    doClean = False
+  elif inArg == inArg.upper():
+    theFlags.append(inArg)
+  elif inArg in ("help","-help","--help","-h","what","wtf","huh","why","butwhy","ffs"):
+    print(theHelp)
+    exit(0)
   else:
-    theFlags.append(anArg)
+    logger.error("Unrecognised argument '%s'" % inArg)
+    print("")
+    print(theHelp)
+    exit(0)
 
 if len(theComps) == 0:
   theComps = ["gfortran"]
+if len(theTypes) == 0:
+  theTypes = ["release"]
 
 logger.info("")
 logger.info("Arguments:")
-logger.info(" * Will checkout:    %s" % chkRef)
-logger.info(" * Will build with:  %s" % ",".join(theComps))
-logger.info(" * Will build flags: %s" % " ".join(theFlags))
-logger.info(" * Will test with:   %s" % theTest)
-logger.info(" * Will show stdout: %s" % str(showStd))
+logger.info(" * Will checkout:     %s" % chkRef)
+logger.info(" * Will build with:   %s" % ",".join(theComps))
+logger.info(" * Will build types:  %s" % ",".join(theTypes))
+logger.info(" * Will build flags:  %s" % " ".join(theFlags))
+logger.info(" * Will test with:    %s" % theTest)
+logger.info(" * Will clean up:     %s" % str(doClean))
+logger.info(" * Will build output: %s" % str(buildOut))
+logger.info(" * Will test output:  %s" % str(testOut))
 
 gitHash, gitTime, gitMsg = getCommitFromRef(dSource, chkRef)
 
@@ -126,8 +180,13 @@ logger.info("Building SixTrack:")
 bldPass = {}
 exCode = system("rm -rf build/")
 for aComp in theComps:
-  exCode = system("./cmake_six %s release %s" % (aComp," ".join(theFlags)))
-  bldPass[aComp] = exCode == 0
+  for aType in theTypes:
+    cmdStr = "./cmake_six %s %s BUILD_TESTING %s" % (aComp,aType," ".join(theFlags))
+    if not buildOut:
+      cmdStr += " > /dev/null"
+    logger.info("Running: %s" % cmdStr)
+    exCode = system(cmdStr)
+    bldPass[aComp+" "+aType] = exCode == 0
 
 logger.info("")
 logger.info("Running Tests:")
@@ -139,31 +198,37 @@ for aBuild in listdir(bldDir):
   if path.isdir(theBuild):
     logger.info("Entering in: %s" % aBuild)
     chdir(theBuild)
-    exCode = system("ctest %s -j%d" % (theTest,nTest))
+    cmdStr = "ctest %s -j%d" % (theTest,nTest)
+    if not testOut:
+      cmdStr += " > /dev/null"
+    logger.info("Running: %s" % cmdStr)
+    exCode = system(cmdStr)
     tstPass[aBuild] = exCode == 0
 
 logger.info("")
-logger.info("="*74)
+logger.info(" Summary:")
+logger.info("="*80)
 logger.info("")
-logger.info("Build Summary:")
 for aBuild in bldPass:
   if aBuild:
     bRes = "   Passed"
   else:
     bRes = "***Failed"
-  bDesc = "%s %s" % (aBuild," ".join(theFlags))
-  logger.info(" * %s %s%s" % (bDesc,"."*(60-len(bDesc)),bRes))
+  bDesc = "Build: %s %s" % (aBuild," ".join(theFlags))
+  logger.info(" %s %s%s" % (bDesc,"."*(68-len(bDesc)),bRes))
 
-logger.info("")
-logger.info("Tests Summary:")
 for aTest in tstPass:
   if aTest:
     bRes = "   Passed"
   else:
     bRes = "***Failed"
-  tDesc = aTest[18:].replace("BUILD_TESTING","").replace("_"," ").strip()
-  logger.info(" * %s %s%s" % (tDesc,"."*(60-len(tDesc)),bRes))
+  tDesc = "Test: %s" % (aTest[18:].replace("BUILD_TESTING","").replace("_"," ").strip())
+  logger.info(" %s %s%s" % (tDesc,"."*(68-len(tDesc)),bRes))
+
+chdir(workDir)
+if path.isdir(workDir) and doClean:
+  stdOut, stdErr, exCode = sysCall("rm -rf %s" % gitHash)
 
 logger.info("")
-logger.info("="*74)
+logger.info("="*80)
 logger.info("")
