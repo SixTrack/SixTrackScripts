@@ -62,8 +62,8 @@ theHelp = """
   * Build Flags:       Any flag that is accepted by the CMake. BUILD_TESTING is implied.
   * Run Tests:         fast, medium, slow, fastmedium, gonuts (last one runs '-E prob')
   * Delete Work Dir:   clean, messy (for do clean up, and don't, respectively)
-  * Show Build Output: buildout, nobuildout
-  * Show Test Output:  testout, notestout
+  * Show Build Output: showbuild, hidebuild
+  * Show Test Output:  showtests, hidetests
   * Show Output:       spammy, quiet (sets both of the above at the same time)
 """
 
@@ -75,7 +75,7 @@ theComps = []
 theTypes = []
 theFlags = []
 theTest  = "-L fast"
-buildOut = False
+buildOut = True
 testOut  = True
 doClean  = True
 
@@ -102,14 +102,14 @@ for inArg in sys.argv[1:]:
   elif inArg == "fastmedium":
     theTest = "-L \"fast|medium\""
   elif inArg == "gonuts":
-    theTest = "-E prob"
-  elif inArg in ("buildout","spammy"):
+    theTest = "all"
+  elif inArg in ("showbuild","spammy"):
     buildOut = True
-  elif inArg in ("nobuildout","quiet"):
+  elif inArg in ("hidebuild","quiet"):
     buildOut = False
-  elif inArg in ("testdout","spammy"):
+  elif inArg in ("showtest","showtests","spammy"):
     testOut = True
-  elif inArg in ("notestdout","quiet"):
+  elif inArg in ("hidetest","hidetests","quiet"):
     testOut = False
   elif inArg in "clean":
     doClean = True

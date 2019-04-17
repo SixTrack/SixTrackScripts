@@ -66,6 +66,7 @@ theBuilds = {
   "Beam-Gas"           : [["g","i","n"], "BEAMGAS",                 [None,None]],
   "Fluka Coupling"     : [["g","i","n"], "FLUKA",                   [None,None]],
   "Merlin Scattering"  : [["g","i","n"], "MERLINSCATTER",           [None,None]],
+# "Geant4 Scattering"  : [["g","i","n"], "G4COLLIMAT",              [None,None]],
   "DEBUG Flag"         : [["g","i","n"], "DEBUG",                   [None,None]],
 }
 
