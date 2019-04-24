@@ -44,8 +44,8 @@ theCompilers = {
   "n" : {"exec" : "nagfor",   "enabled" : True, "version": "-V"}
 }
 
-ctFF = "-L fast"
-ctFM = "-L 'fast|medium'"
+ctFF = "-L 'fast|error'"
+ctFM = "-L 'fast|medium|error'"
 ctNS = "-E prob"
 
 theBuilds = {
