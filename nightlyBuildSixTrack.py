@@ -17,7 +17,7 @@
 import sys
 import time
 import logging
-from os import path, chdir, mkdir, listdir
+from os import path, chdir, mkdir, listdir, system
 from datetime import datetime
 from buildFucntions import *
 
@@ -44,22 +44,24 @@ theCompilers = {
   "n" : {"exec" : "nagfor",   "enabled" : True, "version": "-V"}
 }
 
-ctFF = "-L 'fast|error'"
+ctFF = "-L fast"
+ctFE = "-L 'fast|error'"
 ctFM = "-L 'fast|medium|error'"
 ctNS = "-E prob"
+ctNE = "-E 'prob|error'"
 
 theBuilds = {
   # Label                 Compilers      Options                    Tests (rel/dbg)
   "Standard Single"    : [["g","i","n"], "-64BITM -CRLIBM 32BITM",  [None,None]],
-  "Standard Double"    : [["g","i","n"], "",                        [ctNS,ctNS]],
+  "Standard Double"    : [["g","i","n"], "",                        [ctNS,ctNE]],
   "Standard Quad"      : [["g","i","n"], "-64BITM -CRLIBM 128BITM", [None,None]],
   "Round Up"           : [["g","i","n"], "-ROUND_NEAR ROUND_UP",    [None,None]],
   "Round Down"         : [["g","i","n"], "-ROUND_NEAR ROUND_DOWN",  [None,None]],
   "Round Zero"         : [["g","i","n"], "-ROUND_NEAR ROUND_ZERO",  [None,None]],
   "No SingleTrackFile" : [["g","i","n"], "-STF",                    [ctFF,ctFF]],
-  "Checkpoint/Restart" : [["g","i","n"], "CR",                      [ctNS,ctFF]],
+  "Checkpoint/Restart" : [["g","i","n"], "CR",                      [ctNE,ctFF]],
   "libArchive Support" : [["g","i","n"], "LIBARCHIVE",              [None,None]],
-  "BOINC Support"      : [["g","i","n"], "CR BOINC LIBARCHIVE",     [ctNS,ctFF]],
+  "BOINC Support"      : [["g","i","n"], "CR BOINC LIBARCHIVE",     [ctNE,ctFF]],
   "Fortran I/O"        : [["g","i","n"], "FIO",                     [ctFF,ctFF]],
   "HDF5"               : [["g"],         "HDF5",                    [None,None]],
   "Pythia"             : [["g","i","n"], "PYTHIA",                  [None,None]],
@@ -137,6 +139,12 @@ if gitHash == prevHash:
   logger.info("No change to origin/master since last time. Exiting.")
   logger.info("")
   exit(0)
+
+# We're Running This!
+
+# Stop BOINC
+exCode = system("boinccmd --set_run_mode never && boinccmd --set_gpu_mode never")
+logger.info("Disabling BOINC: %d" % exCode)
 
 stdOut, stdErr, exCode = sysCall("uname -rsm")
 runOS = stdOut.strip()
@@ -307,6 +315,8 @@ for toRun in cTests:
 
   # Log Timing
   for tItem in listdir(path.join(toRun["path"],"test")):
+    if tItem[:6] == "error_":
+      continue
     tPath = path.join(toRun["path"],"test",tItem)
     if path.isdir(tPath):
       execTime = getExecTime(tPath)
@@ -438,7 +448,7 @@ if bexCode == 0:
 
   # Run Tests
   chdir(path.join(dSource,bPath))
-  sysCmd = "ctest -E prob -j%d" % nCov
+  sysCmd = "ctest -E 'prob|error' -j%d" % nCov
 # sysCmd = "ctest -R dynk -j%d" % nCov
   logger.info("Memory Usage Test: %s" % sysCmd)
   tStart = time.time()
@@ -502,6 +512,10 @@ with open(path.join(dRoot,"Builds.log"),mode="a") as outFile:
     ntTot,ntPass,ntFail,
     theMeta["os"]
   ))
+
+# Start BOINC
+exCode = system("boinccmd --set_run_mode auto && boinccmd --set_gpu_mode auto")
+logger.info("Enabling BOINC: %d" % exCode)
 
 logger.info("All Done!")
 logger.info("")
