@@ -61,9 +61,10 @@ theBuilds = {
   "No SingleTrackFile" : [["g","i","n"], "-STF",                    [ctFF,ctFF]],
   "Checkpoint/Restart" : [["g","i","n"], "CR",                      [ctNE,ctFF]],
   "libArchive Support" : [["g","i","n"], "LIBARCHIVE",              [None,None]],
-  "BOINC Support"      : [["g","i","n"], "CR BOINC LIBARCHIVE",     [ctNE,ctFF]],
+  "ZLIB Support"       : [["g","i","n"], "ZLIB",                    [None,None]],
+  "BOINC Support"      : [["g","i","n"], "CR BOINC ZLIB -STATIC",   [ctNE,ctFF]],
   "Fortran I/O"        : [["g","i","n"], "FIO",                     [ctFF,ctFF]],
-  "HDF5"               : [["g"],         "HDF5",                    [None,None]],
+  "HDF5"               : [["g"],         "HDF5 ZLIB",               [None,None]],
   "Pythia"             : [["g","i","n"], "PYTHIA",                  [None,None]],
   "Beam-Gas"           : [["g","i","n"], "BEAMGAS",                 [None,None]],
   "Fluka Coupling"     : [["g","i","n"], "FLUKA",                   [None,None]],
@@ -176,7 +177,41 @@ theMeta = {
   "totloc"    : 0,
   "prevcov"   : "",
 }
-sendData(theMeta)
+# sendData(theMeta)
+
+##
+#  Build Submodules
+##
+
+stdOut, stdErr, exCode = sysCall("./buildLibraries.sh naff")
+if exCode == 0:
+  logger.info("NAFF build successful")
+else:
+  logger.info("NAFF build failed")
+
+stdOut, stdErr, exCode = sysCall("./buildLibraries.sh boinc")
+if exCode == 0:
+  logger.info("BOINC build successful")
+else:
+  logger.info("BOINC build failed")
+
+stdOut, stdErr, exCode = sysCall("./buildLibraries.sh libarchive")
+if exCode == 0:
+  logger.info("libArchive build successful")
+else:
+  logger.info("libArchive build failed")
+
+stdOut, stdErr, exCode = sysCall("./buildLibraries.sh hdf5")
+if exCode == 0:
+  logger.info("HDF5 build successful")
+else:
+  logger.info("HDF5 build failed")
+
+stdOut, stdErr, exCode = sysCall("./buildLibraries.sh pythia")
+if exCode == 0:
+  logger.info("Pythia build successful")
+else:
+  logger.info("Pythia build failed")
 
 ##
 #  Builds
