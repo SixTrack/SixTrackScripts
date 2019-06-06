@@ -177,7 +177,7 @@ theMeta = {
   "totloc"    : 0,
   "prevcov"   : "",
 }
-# sendData(theMeta)
+sendData(theMeta)
 
 ##
 #  Build Submodules
