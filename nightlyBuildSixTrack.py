@@ -50,21 +50,23 @@ ctFM = "-L 'fast|medium|error'"
 ctNS = "-E prob"
 ctNE = "-E 'prob|error'"
 
+precOff = "-64BITM -CRLIBM -DISTLIB"
+
 theBuilds = {
   # Label                 Compilers      Options                    Tests (rel/dbg)
-  "Standard Single"    : [["g","i","n"], "-64BITM -CRLIBM 32BITM",  [None,None]],
+  "Standard Single"    : [["g","i","n"], "32BITM "+precOff,         [None,None]],
   "Standard Double"    : [["g","i","n"], "",                        [ctNS,ctNE]],
-  "Standard Quad"      : [["g","i","n"], "-64BITM -CRLIBM 128BITM", [None,None]],
+  "Standard Quad"      : [["g","i","n"], "128BITM "+precOff,        [None,None]],
   "Round Up"           : [["g","i","n"], "-ROUND_NEAR ROUND_UP",    [None,None]],
   "Round Down"         : [["g","i","n"], "-ROUND_NEAR ROUND_DOWN",  [None,None]],
   "Round Zero"         : [["g","i","n"], "-ROUND_NEAR ROUND_ZERO",  [None,None]],
   "No SingleTrackFile" : [["g","i","n"], "-STF",                    [ctFF,ctFF]],
   "Checkpoint/Restart" : [["g","i","n"], "CR",                      [ctNE,ctFF]],
-  "libArchive Support" : [["g","i","n"], "LIBARCHIVE",              [None,None]],
-  "ZLIB Support"       : [["g","i","n"], "ZLIB",                    [None,None]],
-  "BOINC Support"      : [["g","i","n"], "CR BOINC ZLIB -STATIC",   [ctNE,ctFF]],
+# "libArchive Support" : [["g","i","n"], "LIBARCHIVE -ZLIB",        [None,None]],
+# "ZLIB Support"       : [["g","i","n"], "ZLIB",                    [None,None]],
+  "BOINC Support"      : [["g","i","n"], "CR BOINC -STATIC",        [ctNE,ctFF]],
   "Fortran I/O"        : [["g","i","n"], "FIO",                     [ctFF,ctFF]],
-  "HDF5"               : [["g"],         "HDF5 ZLIB",               [None,None]],
+  "HDF5"               : [["g"],         "HDF5",                    [None,None]],
   "Pythia"             : [["g","i","n"], "PYTHIA",                  [None,None]],
   "Beam-Gas"           : [["g","i","n"], "BEAMGAS",                 [None,None]],
   "Fluka Coupling"     : [["g","i","n"], "FLUKA",                   [None,None]],
