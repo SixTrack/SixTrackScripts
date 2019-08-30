@@ -44,35 +44,33 @@ theCompilers = {
   "n" : {"exec" : "nagfor",   "enabled" : True, "version": "-V"}
 }
 
-ctFF = "-L fast"
+ctFF = "-L 'fast'"
 ctFE = "-L 'fast|error'"
 ctFM = "-L 'fast|medium|error'"
-ctNS = "-E prob"
+ctNS = "-E 'prob'"
 ctNE = "-E 'prob|error'"
 
-precOff = "-64BITM -CRLIBM -DISTLIB"
-
 theBuilds = {
-  # Label                 Compilers      Options                    Tests (rel/dbg)
-  "Standard Single"    : [["g","i","n"], "32BITM "+precOff,         [None,None]],
-  "Standard Double"    : [["g","i","n"], "",                        [ctNS,ctNE]],
-  "Standard Quad"      : [["g","i","n"], "128BITM "+precOff,        [None,None]],
-  "Round Up"           : [["g","i","n"], "-ROUND_NEAR ROUND_UP",    [None,None]],
-  "Round Down"         : [["g","i","n"], "-ROUND_NEAR ROUND_DOWN",  [None,None]],
-  "Round Zero"         : [["g","i","n"], "-ROUND_NEAR ROUND_ZERO",  [None,None]],
-  "No SingleTrackFile" : [["g","i","n"], "-STF",                    [ctFF,ctFF]],
-  "Checkpoint/Restart" : [["g","i","n"], "CR",                      [ctNE,ctFF]],
-# "libArchive Support" : [["g","i","n"], "LIBARCHIVE -ZLIB",        [None,None]],
-# "ZLIB Support"       : [["g","i","n"], "ZLIB",                    [None,None]],
-  "BOINC Support"      : [["g","i","n"], "CR BOINC -STATIC",        [ctNE,ctFF]],
-  "Fortran I/O"        : [["g","i","n"], "FIO",                     [ctFF,ctFF]],
-  "HDF5"               : [["g"],         "HDF5",                    [None,None]],
-  "Pythia"             : [["g","i","n"], "PYTHIA",                  [None,None]],
-  "Beam-Gas"           : [["g","i","n"], "BEAMGAS",                 [None,None]],
-  "Fluka Coupling"     : [["g","i","n"], "FLUKA",                   [None,None]],
-  "Merlin Scattering"  : [["g","i","n"], "MERLINSCATTER",           [None,None]],
-# "Geant4 Scattering"  : [["g","i","n"], "G4COLLIMAT",              [None,None]],
-  "DEBUG Flag"         : [["g","i","n"], "DEBUG",                   [None,None]],
+  # Label                 Compilers      Options                             Tests (rel/dbg)
+  "Standard Single"    : [["g","i","n"], "32BITM -64BITM -CRLIBM -DISTLIB",  [None,None]],
+  "Standard Double"    : [["g","i","n"], "",                                 [ctNS,ctNE]],
+  "Standard Quad"      : [["g","i","n"], "128BITM -64BITM -CRLIBM -DISTLIB", [None,None]],
+  "Round Up"           : [["g","i","n"], "-ROUND_NEAR ROUND_UP",             [None,None]],
+  "Round Down"         : [["g","i","n"], "-ROUND_NEAR ROUND_DOWN",           [None,None]],
+  "Round Zero"         : [["g","i","n"], "-ROUND_NEAR ROUND_ZERO",           [None,None]],
+  "No SingleTrackFile" : [["g","i","n"], "-STF",                             [ctFF,ctFF]],
+  "Checkpoint/Restart" : [["g","i","n"], "CR",                               [ctNE,ctFF]],
+# "libArchive Support" : [["g","i","n"], "LIBARCHIVE -ZLIB",                 [None,None]],
+# "ZLIB Support"       : [["g","i","n"], "ZLIB",                             [None,None]],
+  "BOINC Support"      : [["g","i","n"], "CR BOINC -STATIC",                 [ctNE,ctFF]],
+  "Fortran I/O"        : [["g","i","n"], "FIO",                              [ctFF,ctFF]],
+  "HDF5"               : [["g"],         "HDF5",                             [None,None]],
+  "Pythia"             : [["g","i","n"], "PYTHIA",                           [None,None]],
+  "Beam-Gas"           : [["g","i","n"], "BEAMGAS",                          [None,None]],
+# "Fluka Coupling"     : [["g","i","n"], "FLUKA",                            [None,None]],
+  "Merlin Scattering"  : [["g","i","n"], "MERLINSCATTER",                    [None,None]],
+# "Geant4 Scattering"  : [["g","i","n"], "G4COLLIMAT",                       [None,None]],
+  "DEBUG Flag"         : [["g","i","n"], "DEBUG",                            [None,None]],
 }
 
 # theBuilds = {
