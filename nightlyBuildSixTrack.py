@@ -58,10 +58,7 @@ theBuilds = {
   "Round Up"           : [["g","i","n"], "-ROUND_NEAR ROUND_UP",             [None,None]],
   "Round Down"         : [["g","i","n"], "-ROUND_NEAR ROUND_DOWN",           [None,None]],
   "Round Zero"         : [["g","i","n"], "-ROUND_NEAR ROUND_ZERO",           [None,None]],
-  "No SingleTrackFile" : [["g","i","n"], "-STF",                             [ctFF,ctFF]],
   "Checkpoint/Restart" : [["g","i","n"], "CR",                               [ctNE,ctFF]],
-# "libArchive Support" : [["g","i","n"], "LIBARCHIVE -ZLIB",                 [None,None]],
-# "ZLIB Support"       : [["g","i","n"], "ZLIB",                             [None,None]],
   "BOINC Support"      : [["g","i","n"], "CR BOINC -STATIC",                 [ctNE,ctFF]],
   "Fortran I/O"        : [["g","i","n"], "FIO",                              [ctFF,ctFF]],
   "HDF5"               : [["g"],         "HDF5",                             [None,None]],
@@ -183,23 +180,11 @@ sendData(theMeta)
 #  Build Submodules
 ##
 
-stdOut, stdErr, exCode = sysCall("./buildLibraries.sh naff")
-if exCode == 0:
-  logger.info("NAFF build successful")
-else:
-  logger.info("NAFF build failed")
-
 stdOut, stdErr, exCode = sysCall("./buildLibraries.sh boinc")
 if exCode == 0:
   logger.info("BOINC build successful")
 else:
   logger.info("BOINC build failed")
-
-stdOut, stdErr, exCode = sysCall("./buildLibraries.sh libarchive")
-if exCode == 0:
-  logger.info("libArchive build successful")
-else:
-  logger.info("libArchive build failed")
 
 stdOut, stdErr, exCode = sysCall("./buildLibraries.sh hdf5")
 if exCode == 0:
