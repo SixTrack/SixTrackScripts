@@ -19,7 +19,7 @@ import time
 import logging
 from os import path, chdir, mkdir, listdir, system
 from datetime import datetime
-from buildFucntions import *
+from buildFunctions import *
 
 logger = logging.getLogger("SixTrackTestBuild")
 
