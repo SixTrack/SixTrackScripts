@@ -30,6 +30,7 @@ logger = logging.getLogger("SixTrackTestBuild")
 dRoot    = "/scratch/TestBuild"
 dLog     = "/scratch/TestBuild/Logs"
 dSource  = "/scratch/TestBuild/Source/SixTrack"
+dResults = "/scratch/TestBuild/Results"
 testTime = "/scratch/TestBuild/Timing"
 testCov  = "/scratch/TestBuild/Coverage"
 keyFile  = path.join(path.dirname(path.realpath(__file__)),"apiKey.dat")
@@ -66,7 +67,7 @@ theBuilds = {
   "Beam-Gas"           : [["g","i","n"], "BEAMGAS",                          [None,None]],
 # "Fluka Coupling"     : [["g","i","n"], "FLUKA",                            [None,None]],
   "Merlin Scattering"  : [["g","i","n"], "MERLINSCATTER",                    [None,None]],
-# "Geant4 Scattering"  : [["g","i","n"], "G4COLLIMAT",                       [None,None]],
+  "Geant4 Scattering"  : [["g","i","n"], "G4COLLIMATION -STATIC -ZLIB",      [None,None]],
   "DEBUG Flag"         : [["g","i","n"], "DEBUG",                            [None,None]],
 }
 
@@ -158,7 +159,6 @@ for bBuild in theBuilds:
 
 theMeta = {
   "action"    : "meta",
-  "apikey"    : genApiKey(keyFile),
   "runtime"   : time.time(),
   "hash"      : gitHash,
   "ctime"     : gitTime,
@@ -174,7 +174,7 @@ theMeta = {
   "totloc"    : 0,
   "prevcov"   : "",
 }
-sendData(theMeta)
+writeResults(theMeta, dResults, "meta")
 
 ##
 #  Build Submodules
@@ -277,8 +277,7 @@ for bComp in theCompilers.keys():
         logger.info(" * Build Skipped")
 
       # Send Report
-      bStatus["apikey"] = genApiKey(keyFile)
-      sendData(bStatus)
+      writeResults(bStatus, dResults, hashIt("build",bStatus["command"]))
 
 logger.info("Build queue done!")
 
@@ -330,8 +329,7 @@ for toRun in cTests:
   ntFail += nFail
 
   # Send Report
-  tStatus["apikey"] = genApiKey(keyFile)
-  sendData(tStatus)
+  writeResults(tStatus, dResults, hashIt("test",tStatus["command"]))
 
   # Log Timing
   for tItem in listdir(path.join(toRun["path"],"test")):
@@ -519,9 +517,8 @@ logger.info("Cleanup done!")
 #  Finish
 ##
 
-theMeta["apikey"]  = genApiKey(keyFile)
 theMeta["endtime"] = time.time()
-sendData(theMeta)
+writeResults(theMeta, dResults, "meta")
 
 with open(path.join(dRoot,"Builds.log"),mode="a") as outFile:
   outFile.write("%40s  %19s  %-10s  %19s  %19s  %5d  %5d  %5d  %5d  %5d  %s\n" % (

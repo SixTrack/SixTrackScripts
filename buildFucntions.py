@@ -11,12 +11,13 @@
 
 """
 
+import json
 import logging
+import hashlib
 import requests
 import subprocess
 from os import path, chdir, getcwd, system
 from datetime import datetime
-from hashlib import md5
 
 logger = logging.getLogger("SixTrackTestBuild")
 
@@ -130,12 +131,21 @@ def ctestCoverage(stdOut,stdErr):
   nLOC = 0
   nTot = 1
   if len(outLns) < 3:
-    logger.error("CCOV> Cannot parse covergae output")
+    logger.error("CCOV> Cannot parse coverage output")
   else:
     cLoc = (outLns[0].split())[-1]
     nLoc = (outLns[1].split())[-1]
     nTot = (outLns[2].split())[-1]
   return nTot, cLoc, nLoc
+
+def writeResults(theData, theTarget, theLabel):
+  try:
+    with open("%s/%s.json" % (theTarget, theLabel), mode="w+") as outFile:
+      json.dump(theData, outFile)
+    logger.debug(" * Writing data for SixTrack website")
+  except Exception as e:
+    logger.error(" * Failed to write data for SixTrack website")
+    logger.error(str(e))
 
 def sendData(theData):
   stUrl = "http://sixtrack.web.cern.ch/SixTrack/build_status.php"
@@ -145,13 +155,8 @@ def sendData(theData):
   except:
     logger.error(" * Failed to send data to SixTrack website")
 
-def genApiKey(keyFile):
-  try:
-    with open(keyFile,mode="r") as inFile:
-      keySalt = inFile.read().strip()
-  except:
-    logger.error(" * Could not find API key file")
-  return md5((datetime.now().strftime("%Y%m%d")+"-"+keySalt).encode("utf-8")).hexdigest()
+def hashIt(theType, theCommand):
+  return "%s_%s" % (theType, hashlib.md5(theCommand.encode()).hexdigest())
 
 def getExecTime(tPath):
   simTime = path.join(tPath,"sim_time.dat")
