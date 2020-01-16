@@ -33,7 +33,6 @@ dSource  = "/scratch/TestBuild/Source/SixTrack"
 dResults = "/scratch/TestBuild/Results"
 testTime = "/scratch/TestBuild/Timing"
 testCov  = "/scratch/TestBuild/Coverage"
-keyFile  = path.join(path.dirname(path.realpath(__file__)),"apiKey.dat")
 
 nBld  = 8
 nTest = 10
@@ -56,6 +55,7 @@ theBuilds = {
   "Standard Single"    : [["g","i","n"], "32BITM -64BITM -CRLIBM -DISTLIB",  [None,None]],
   "Standard Double"    : [["g","i","n"], "",                                 [ctNS,ctNE]],
   "Standard Quad"      : [["g","i","n"], "128BITM -64BITM -CRLIBM -DISTLIB", [None,None]],
+  "Standard AVX2"      : [["g","i","n"], "AVX2",                             [ctNE,ctFF]],
   "Round Up"           : [["g","i","n"], "-ROUND_NEAR ROUND_UP",             [None,None]],
   "Round Down"         : [["g","i","n"], "-ROUND_NEAR ROUND_DOWN",           [None,None]],
   "Round Zero"         : [["g","i","n"], "-ROUND_NEAR ROUND_ZERO",           [None,None]],
@@ -229,7 +229,6 @@ for bComp in theCompilers.keys():
       # Results Record
       bStatus = {
         "action"    : "build",
-        "apikey"    : "",
         "timestamp" : time.time(),
         "hash"      : gitHash,
         "compiler"  : bldExec,
